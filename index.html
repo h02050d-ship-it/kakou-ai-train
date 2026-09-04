@@ -39,6 +39,12 @@ button:disabled{opacity:.5;cursor:default}
 .meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--sub)}
 .src{border-radius:6px;padding:1px 8px;font-weight:600;font-size:12px}
 .src.past{background:#e3f2fd;color:#0d47a1}.src.live{background:#fff3e0;color:#e65100}.src.synth{background:#f3e5f5;color:#6a1b9a}.src.test{background:#eee;color:#555}
+.src.fax{background:#fff8e1;color:#8a6d00}
+.faxbox{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;align-items:flex-start}
+.faxbox img{max-width:420px;width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:zoom-in}
+.faxbox.zoom img{max-width:100%}
+.faxmeta{font-size:13px;color:var(--sub);min-width:200px}
+.faxmeta a{color:var(--info)}
 .conf{display:inline-flex;align-items:center;gap:6px}
 .bar{width:70px;height:7px;background:#eee;border-radius:4px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--warn)}
@@ -88,13 +94,14 @@ kbd{background:#eee;border-radius:4px;padding:0 5px;font-family:inherit;font-siz
   <div class="tools">
     <button class="pri" onclick="genPast(10)">📚 過去の行から10件 出題させる</button>
     <button onclick="genSynth(6)">🧪 誤りを植えてテスト 6件</button>
+    <button onclick="genFax()">📠 FAX原本と入力行を照合 1枚</button>
     <button onclick="showTab('rules');document.getElementById('ruleText').focus()">✍ ルールを教える</button>
     <button class="ghost" onclick="refresh(true)">↻ 更新</button>
     <button class="ghost" onclick="logout()">ログアウト</button>
   </div>
 </div></header>
 <main class="wrap">
-  <div class="help" id="help">AIが加工予定表の行を検査して「ここが怪しい」と言ったものが並びます。あなたは <b>✔ 正しい指摘</b>（本当に入力ミス） か <b>✖ 誤指摘</b>（問題ない・いつも通り） を押すだけ。ひとことコメントを添えると「ルールにも追加」でAIが次回から従います。キー: <kbd>1</kbd>=正しい <kbd>2</kbd>=誤指摘 <kbd>3</kbd>=スキップ <kbd>J</kbd>/<kbd>K</kbd>=次/前</div>
+  <div class="help" id="help">AIが加工予定表の行を検査して「ここが怪しい」と言ったものが並びます。あなたは <b>✔ 正しい指摘</b>（本当に入力ミス） か <b>✖ 誤指摘</b>（問題ない・いつも通り） を押すだけ。ひとことコメントを添えると「ルールにも追加」でAIが次回から従います。<b>📠 FAX照合</b>は実際のFAX原本(手書き含む)をAIに見せて入力行と比べさせる出題です。キー: <kbd>1</kbd>=正しい <kbd>2</kbd>=誤指摘 <kbd>3</kbd>=スキップ <kbd>J</kbd>/<kbd>K</kbd>=次/前</div>
   <div class="tabs">
     <button class="tab on" id="tab-open" onclick="showTab('open')">未回答 <span id="nOpen"></span></button>
     <button class="tab" id="tab-answered" onclick="showTab('answered')">回答済み</button>
@@ -196,7 +203,8 @@ function render(){
   $("nRules").textContent=(D.rules||[]).length?`(${D.rules.length})`:"";
   renderOpen(); renderAnswered(); renderRules();
 }
-function srcLabel(s){ return {past:"過去の行",live:"本番",synth:"誤り植えテスト",test:"テスト"}[s]||s; }
+function srcLabel(s){ return {past:"過去の行",live:"本番",synth:"誤り植えテスト",test:"テスト",fax:"FAX原本と照合"}[s]||s; }
+function faxHtml(r){ if(!r.fax) return ""; const id=esc(r.fax); return `<details open><summary>📠 FAX原本を見る（クリックで拡大）</summary><div class="faxbox" onclick="this.classList.toggle('zoom');event.stopPropagation()"><img src="https://drive.google.com/thumbnail?id=${id}&sz=w1400" alt="FAX原本" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'note',textContent:'画像を表示できません（Googleにログインしていない可能性）。右のリンクから原本を開いてください'}))"><div class="faxmeta"><a href="https://drive.google.com/file/d/${id}/view" target="_blank" onclick="event.stopPropagation()">Driveで原本を開く ↗</a><div>AIは原本PDFをそのまま読んで、右上の入力行と見比べています。表記の慣習（例: 仕上がり幅108＝原板120で入力）なら「誤指摘」＋コメントで教えてください。</div></div></div></details>`; }
 function descChips(desc){ return String(desc||"").split(" | ").map((p,i)=>`<span class="kv${i===0?" cust":""}">${esc(p)}</span>`).join(""); }
 function histHtml(cust){
   const h=(D.history||{})[cust]; if(!h) return "";
@@ -214,6 +222,7 @@ function renderOpen(){
       <div class="meta"><span class="src ${esc(r.source)}">${srcLabel(r.source)}</span><span>種別: ${esc(r.type)}${r.field?" / 列: "+esc(r.field):""}</span><span class="conf">確信度 <span class="bar"><i style="width:${Math.round((r.conf||0)*100)}%"></i></span>${Math.round((r.conf||0)*100)}%</span><span>${esc(r.at)}</span></div>
       <div class="row">${descChips(r.desc)}</div>
       <div class="issue">⚠ ${esc(r.message)}</div>
+      ${faxHtml(r)}
       <details><summary>この取引先の履歴を見る</summary>${histHtml(r.customer)}</details>
       ${fax?`<details><summary>📠 FAX原本の読み取りテキスト${fax.url?` ／ <a href="${esc(fax.url)}" target="_blank" onclick="event.stopPropagation()">原本を開く</a>`:""}</summary><div class="fax">${esc(fax.text||"(読み取りなし)")}</div></details>`:""}
       <div class="acts">
@@ -233,6 +242,7 @@ function renderAnswered(){
     <div class="row">${descChips(r.desc)}</div>
     <div class="issue" style="font-weight:600;font-size:14px">${r.state==="見逃し"?"AIは指摘なし → 本来: ":"⚠ "}${esc(r.message)}</div>
     ${r.note?`<div class="note">コメント: ${esc(r.note)}</div>`:""}
+    ${r.fax?`<div class="note"><a href="https://drive.google.com/file/d/${esc(r.fax)}/view" target="_blank">📠 FAX原本</a></div>`:""}
     <div class="acts">${r.state!=="正しい指摘"?`<button onclick="answer('${esc(r.id)}','hit',event,true)">✔ 正しい指摘にする</button>`:""}${r.state!=="誤指摘"?`<button onclick="answer('${esc(r.id)}','miss',event,true)">✖ 誤指摘にする</button>`:""}<button class="ghost" onclick="answer('${esc(r.id)}','open',event,true)">未回答に戻す</button></div>
   </div>`).join("");
 }
@@ -273,6 +283,14 @@ async function genPast(n){
   busy(true,`AIが過去の出荷済み行 ${n}件を検査中…（30〜60秒）`);
   try{ const j=await api("kaichkBulk",{n}); if(!j.ok) throw new Error(j.error||"error");
     toast(`${j.checked}行を検査 → 指摘 ${j.findings}件（AIの費用 約¥${j.est_yen}）残り${j.remaining}行`);
+    await refresh(false); showTab("open"); focusIdx=0; setFocus(0);
+  }catch(e){ toast("失敗: "+e.message); } finally{ busy(false); }
+}
+async function genFax(){
+  busy(true,"FAX原本(PDF)をAIに読ませて入力行と照合中…（30〜90秒）");
+  try{ const j=await api("kaichkFaxNext",{}); if(!j.ok) throw new Error(j.error||"error");
+    if(!j.checked){ toast(j.note||"照合できるFAXがありません"); return; }
+    toast(`${j.fax.name}（入力行${j.rows}件）→ ${j.not_order?"注文書ではないと判定":"指摘 "+j.findings+"件"}（約¥${j.est_yen}）`);
     await refresh(false); showTab("open"); focusIdx=0; setFocus(0);
   }catch(e){ toast("失敗: "+e.message); } finally{ busy(false); }
 }
