@@ -122,16 +122,25 @@ const SSO_PEERS=["hayazai_board_cred","hayazai_seiso_cred","hayazai_rulebook_cre
 function ssoFind_(){ for(const k of [SSO_KEY].concat(SSO_PEERS)){ try{ const v=JSON.parse(localStorage.getItem(k)||"null"); if(v){ const email=v.email||v.e, pass=v.pass||v.p; if(email&&pass) return {email:String(email),pass:String(pass)}; } }catch(e){} } return null; }
 function ssoWrite(email,pass){ try{ localStorage.setItem(SSO_KEY,JSON.stringify({email,pass})); }catch(e){} }
 function ssoClear(){ try{ localStorage.removeItem(SSO_KEY); }catch(e){} }
-function creds(){ try{ const v=JSON.parse(localStorage.getItem(CRED_KEY)||"null"); if(v&&v.email&&v.pass) return v; }catch(e){} const s=ssoFind_(); if(s){ try{ localStorage.setItem(CRED_KEY,JSON.stringify(s)); }catch(e){} return s; } return {}; }
-function saveCreds(email,pass){ localStorage.setItem(CRED_KEY,JSON.stringify({email,pass})); ssoWrite(email,pass); }
-function clearCreds(){ localStorage.removeItem(CRED_KEY); localStorage.removeItem(CACHE_KEY); ssoClear(); }
+function creds(){ try{ const v=JSON.parse(localStorage.getItem(CRED_KEY)||"null"); if(v&&v.email&&v.pass) return v; }catch(e){} const s=ssoFind_(); if(s){ let bad=null; try{ bad=localStorage.getItem(CRED_KEY+"_bad"); }catch(e){} if(bad&&bad===JSON.stringify(s)) return {}; try{ localStorage.setItem(CRED_KEY,JSON.stringify(s)); }catch(e){} return s; } return {}; }
+function saveCreds(email,pass){ localStorage.removeItem(CRED_KEY+"_bad"); localStorage.setItem(CRED_KEY,JSON.stringify({email,pass})); ssoWrite(email,pass); }
+function clearCreds(){ try{ const v=localStorage.getItem(CRED_KEY); if(v) localStorage.setItem(CRED_KEY+"_bad",v); }catch(e){} localStorage.removeItem(CRED_KEY); localStorage.removeItem(CACHE_KEY); ssoClear(); }
 function authQS(){ const c=creds(); return "email="+encodeURIComponent(c.email||"")+"&pass="+encodeURIComponent(c.pass||""); }
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 let toastTimer; function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),2800); }
 function busy(on,msg){ $("busy").classList.toggle("on",!!on); if(msg) $("busyMsg").textContent=msg; }
-async function api(action,params){ const qs=Object.entries(params||{}).map(([k,v])=>k+"="+encodeURIComponent(v)).join("&"); const r=await fetch(GAS_URL+"?action="+action+"&"+authQS()+(qs?"&"+qs:""),{cache:"no-store"}); const j=await r.json(); if(j&&j.error==="auth") throw new Error("auth"); return j; }
+async function api(action,params,_retry){
+  const qs=Object.entries(params||{}).map(([k,v])=>k+"="+encodeURIComponent(v)).join("&");
+  let txt="";
+  try{ const r=await fetch(GAS_URL+"?action="+action+"&"+authQS()+(qs?"&"+qs:""),{cache:"no-store",redirect:"follow"}); txt=await r.text(); }
+  catch(e){ if(!_retry){ await new Promise(r=>setTimeout(r,1500)); return api(action,params,true); } throw new Error("通信できません（ネットワーク）: "+e.message); }
+  let j=null; try{ j=JSON.parse(txt); }catch(e){}
+  if(!j){ if(!_retry){ await new Promise(r=>setTimeout(r,1500)); return api(action,params,true); } throw new Error("サーバー応答が不正（GASが一時エラー）: "+txt.replace(/<[^>]+>/g," ").trim().slice(0,80)); }
+  if(j.error==="auth") throw new Error("auth");
+  return j;
+}
 
 let D=null, tab="open", focusIdx=0, faxMap=null;
 
@@ -142,12 +151,23 @@ let D=null, tab="open", focusIdx=0, faxMap=null;
   try{ const cached=JSON.parse(localStorage.getItem(CACHE_KEY)||"null"); if(cached){ D=cached; render(); } }catch(e){}
   refresh(false);
 })();
-async function doLogin(){ const e=$("lemail").value.trim(), p=$("lpass").value; if(!e||!p){ $("lerr").textContent="入力してください"; return; } saveCreds(e,p); $("lerr").textContent=""; try{ await refresh(true); $("login").classList.remove("on"); }catch(err){ clearCreds(); $("lerr").textContent="ログインできませんでした"; } }
+async function doLogin(){
+  const e=$("lemail").value.trim(), p=$("lpass").value;
+  if(!e||!p){ $("lerr").textContent="メールとパスワードを入力してください"; return; }
+  saveCreds(e,p); $("lerr").textContent="確認中…";
+  try{ await refresh(true); $("login").classList.remove("on"); $("lerr").textContent=""; }
+  catch(err){
+    const m=String(err&&err.message||err);
+    if(m==="auth"){ clearCreds(); $("lerr").textContent="メールまたはパスワードが違います（他の社内ツールと同じもの）"; }
+    else { $("lerr").textContent="接続に失敗しました。もう一度「ログイン」を押してください。 詳細: "+m; }
+  }
+}
+["lemail","lpass"].forEach(id=>document.addEventListener("DOMContentLoaded",()=>{ $(id).addEventListener("keydown",ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); doLogin(); } }); }));
 function logout(){ clearCreds(); location.reload(); }
 async function refresh(showBusy){
   if(showBusy) busy(true,"読み込み中…");
   try{ const j=await api("kaichkTrainList"); if(!j.ok) throw new Error(j.error||"error"); D=j; localStorage.setItem(CACHE_KEY,JSON.stringify(j)); $("login").classList.remove("on"); render(); loadFax(); }
-  catch(e){ if(String(e.message)==="auth"){ clearCreds(); $("login").classList.add("on"); $("lerr").textContent="ログインし直してください"; } else toast("読み込み失敗: "+e.message); throw e; }
+  catch(e){ if(String(e.message)==="auth"){ clearCreds(); $("login").classList.add("on"); $("lerr").textContent="保存されていたログイン情報が使えませんでした。入力してください"; } else toast("読み込み失敗: "+e.message); throw e; }
   finally{ busy(false); }
 }
 
