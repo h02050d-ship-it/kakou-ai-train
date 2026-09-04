@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="dns-prefetch" href="https://script.google.com">
+<link rel="dns-prefetch" href="https://script.googleusercontent.com">
+<title>加工予定表 AI学習ツール</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%231565c0'/><text x='50' y='68' font-size='58' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>学</text></svg>">
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--line:#e3e7ee;--text:#1f2937;--sub:#6b7280;--ok:#2e7d32;--ng:#b71c1c;--info:#1565c0;--warn:#e65100;--gray:#757575}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI","Hiragino Sans","Noto Sans JP",Meiryo,sans-serif;font-size:15px;line-height:1.55}
+header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.wrap{max-width:1100px;margin:0 auto;padding:0 18px}
+.hrow{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 0}
+h1{font-size:19px;margin:0;display:flex;align-items:center;gap:8px}
+h1 .ic{display:inline-flex;width:28px;height:28px;border-radius:7px;background:var(--info);color:#fff;font-size:16px;align-items:center;justify-content:center;font-weight:bold}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.chip{background:#f1f5fb;border:1px solid var(--line);border-radius:999px;padding:3px 11px;font-size:13px;color:var(--sub)}
+.chip b{color:var(--text)}
+.chip.ok b{color:var(--ok)}.chip.ng b{color:var(--ng)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;padding:0 0 10px}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 13px;color:var(--text)}
+button:hover{background:#f7f9fc}
+button.pri{background:var(--info);border-color:var(--info);color:#fff}
+button.pri:hover{background:#0d4ea3}
+button.ghost{border-color:transparent;color:var(--sub)}
+button:disabled{opacity:.5;cursor:default}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:14px 0 10px}
+.tab{padding:8px 14px;border:none;border-bottom:3px solid transparent;background:none;border-radius:0;color:var(--sub);font-weight:600}
+.tab.on{color:var(--info);border-bottom-color:var(--info)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:10px 0;box-shadow:0 1px 2px rgba(0,0,0,.03);outline:2px solid transparent;transition:outline-color .15s}
+.card.focus{outline-color:#90caf9}
+.card.gone{animation:gone .25s forwards}
+@keyframes gone{to{opacity:0;transform:translateX(30px);height:0;margin:0;padding:0}}
+.meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--sub)}
+.src{border-radius:6px;padding:1px 8px;font-weight:600;font-size:12px}
+.src.past{background:#e3f2fd;color:#0d47a1}.src.live{background:#fff3e0;color:#e65100}.src.synth{background:#f3e5f5;color:#6a1b9a}.src.test{background:#eee;color:#555}
+.conf{display:inline-flex;align-items:center;gap:6px}
+.bar{width:70px;height:7px;background:#eee;border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--warn)}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 6px}
+.kv{background:#f7f9fc;border:1px solid var(--line);border-radius:7px;padding:3px 9px;font-size:14px}
+.kv.cust{background:#e8f0fe;border-color:#c5d5f5;font-weight:700}
+.issue{color:var(--ng);font-weight:700;margin:6px 0;font-size:15.5px}
+.acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.acts .hit{background:var(--ok);border-color:var(--ok);color:#fff}
+.acts .miss{background:var(--gray);border-color:var(--gray);color:#fff}
+.acts input{flex:1;min-width:220px;font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px}
+.acts label{font-size:12.5px;color:var(--sub);display:flex;align-items:center;gap:4px;white-space:nowrap}
+details{margin-top:8px}
+summary{cursor:pointer;color:var(--info);font-size:13px}
+.hist{font-size:13px;color:#374151;background:#fafbfd;border:1px dashed var(--line);border-radius:8px;padding:8px 12px;margin-top:6px;white-space:pre-wrap;max-height:260px;overflow:auto}
+.hist h4{margin:4px 0 2px;font-size:12.5px;color:var(--sub)}
+.empty{text-align:center;color:var(--sub);padding:40px 0}
+.state{font-weight:700;border-radius:6px;padding:1px 8px;font-size:12.5px}
+.state.hit{background:#e8f5e9;color:var(--ok)}.state.miss{background:#eee;color:#555}.state.missed{background:#fdecea;color:var(--ng)}.state.skip{background:#fff8e1;color:#8a6d00}
+.note{color:var(--sub);font-size:13px}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:#333;color:#fff;padding:10px 18px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none;font-size:14px;max-width:90vw}
+#toast.show{opacity:1;transform:translateX(-50%)}
+#busy{position:fixed;inset:0;background:rgba(255,255,255,.75);display:none;align-items:center;justify-content:center;z-index:20;flex-direction:column;gap:10px;font-size:16px}
+#busy.on{display:flex}
+.spin{width:36px;height:36px;border:4px solid #cfd8e3;border-top-color:var(--info);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#login{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:30}
+#login.on{display:flex}
+.lbox{background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px 28px;width:340px}
+.lbox input{width:100%;font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:8px;margin:6px 0 12px}
+textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;min-height:70px}
+.help{font-size:13px;color:var(--sub);background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:8px 0}
+kbd{background:#eee;border-radius:4px;padding:0 5px;font-family:inherit;font-size:12px;border:1px solid #ddd}
+.rule{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.fax{font-size:12.5px;background:#fffdf5;border:1px solid #f1e6b8;border-radius:8px;padding:8px 12px;white-space:pre-wrap;max-height:300px;overflow:auto;margin-top:6px}
+@media (max-width:700px){.chips{margin-left:0}.bar{width:50px}}
+</style>
+</head>
+<body>
+<div id="login"><div class="lbox"><h2 style="margin:0 0 8px;font-size:18px">加工予定表 AI学習ツール</h2><div class="note" style="margin-bottom:10px">社内ログイン（他ツールでログイン済みなら自動で入ります）</div><input id="lemail" placeholder="メール" type="text" autocomplete="username"><input id="lpass" placeholder="パスワード" type="password" autocomplete="current-password"><button class="pri" style="width:100%" onclick="doLogin()">ログイン</button><div id="lerr" class="note" style="color:var(--ng);margin-top:8px"></div></div></div>
+<div id="busy"><div class="spin"></div><div id="busyMsg">AIが検査中…</div></div>
+<header><div class="wrap">
+  <div class="hrow">
+    <h1><span class="ic">学</span>加工予定表 AI学習ツール</h1>
+    <div class="chips" id="chips"></div>
+  </div>
+  <div class="tools">
+    <button class="pri" onclick="genPast(10)">📚 過去の行から10件 出題させる</button>
+    <button onclick="genSynth(6)">🧪 誤りを植えてテスト 6件</button>
+    <button onclick="showTab('rules');document.getElementById('ruleText').focus()">✍ ルールを教える</button>
+    <button class="ghost" onclick="refresh(true)">↻ 更新</button>
+    <button class="ghost" onclick="logout()">ログアウト</button>
+  </div>
+</div></header>
+<main class="wrap">
+  <div class="help" id="help">AIが加工予定表の行を検査して「ここが怪しい」と言ったものが並びます。あなたは <b>✔ 正しい指摘</b>（本当に入力ミス） か <b>✖ 誤指摘</b>（問題ない・いつも通り） を押すだけ。ひとことコメントを添えると「ルールにも追加」でAIが次回から従います。キー: <kbd>1</kbd>=正しい <kbd>2</kbd>=誤指摘 <kbd>3</kbd>=スキップ <kbd>J</kbd>/<kbd>K</kbd>=次/前</div>
+  <div class="tabs">
+    <button class="tab on" id="tab-open" onclick="showTab('open')">未回答 <span id="nOpen"></span></button>
+    <button class="tab" id="tab-answered" onclick="showTab('answered')">回答済み</button>
+    <button class="tab" id="tab-rules" onclick="showTab('rules')">学習ルール <span id="nRules"></span></button>
+  </div>
+  <section id="pane-open"></section>
+  <section id="pane-answered" hidden></section>
+  <section id="pane-rules" hidden>
+    <div class="card"><b>AIへの追加ルール</b><div class="note">日本語で1行。例:「勝山は幅105が通常」「ニッチの300mmは入数30でOK」「西濃でもシール有の取引先がある」</div>
+      <textarea id="ruleText" placeholder="ルールを書く"></textarea>
+      <div class="acts"><button class="pri" onclick="addRule()">追加する</button><span class="note">追加した瞬間から次回のAI検査に反映されます</span></div></div>
+    <div class="card" id="ruleList"></div>
+  </section>
+</main>
+<div id="toast"></div>
+<script>
+const GAS_URL="https://script.google.com/macros/s/AKfycbyE2O2zEk1NDYskaxflVtPReblSOyA5CyjfHTNXAYzK6tX1zgEzRypcFFSjtDy2SWa7wg/exec";
+const ORDERDESK_URL="https://script.google.com/macros/s/AKfycbwxyn-27FkDO0glFdHwqiN6NiXG5vY0rZXOAfBMDMnh2aSBHO9KxqQRThOZb7W8hAT6/exec";
+const KAKOU_URL="https://h02050d-ship-it.github.io/kakou-yotei/";
+const CRED_KEY="kakouaitrain_cred", CACHE_KEY="kakouaitrain_cache";
+
+/* ===== 資格情報（共通SSO: h02050d-ship-it.github.io の他ツールのログインを引き継ぐ）===== */
+const SSO_KEY="hayazai_sso_cred";
+const SSO_PEERS=["hayazai_board_cred","hayazai_seiso_cred","hayazai_rulebook_cred","hayazai_kaizen_cred","notify_creds_v1","seinodesk_cred","faxdesk_cred","orderdesk_cred","nippou_cred"];
+function ssoFind_(){ for(const k of [SSO_KEY].concat(SSO_PEERS)){ try{ const v=JSON.parse(localStorage.getItem(k)||"null"); if(v){ const email=v.email||v.e, pass=v.pass||v.p; if(email&&pass) return {email:String(email),pass:String(pass)}; } }catch(e){} } return null; }
+function ssoWrite(email,pass){ try{ localStorage.setItem(SSO_KEY,JSON.stringify({email,pass})); }catch(e){} }
+function ssoClear(){ try{ localStorage.removeItem(SSO_KEY); }catch(e){} }
+function creds(){ try{ const v=JSON.parse(localStorage.getItem(CRED_KEY)||"null"); if(v&&v.email&&v.pass) return v; }catch(e){} const s=ssoFind_(); if(s){ try{ localStorage.setItem(CRED_KEY,JSON.stringify(s)); }catch(e){} return s; } return {}; }
+function saveCreds(email,pass){ localStorage.setItem(CRED_KEY,JSON.stringify({email,pass})); ssoWrite(email,pass); }
+function clearCreds(){ localStorage.removeItem(CRED_KEY); localStorage.removeItem(CACHE_KEY); ssoClear(); }
+function authQS(){ const c=creds(); return "email="+encodeURIComponent(c.email||"")+"&pass="+encodeURIComponent(c.pass||""); }
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+let toastTimer; function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),2800); }
+function busy(on,msg){ $("busy").classList.toggle("on",!!on); if(msg) $("busyMsg").textContent=msg; }
+async function api(action,params){ const qs=Object.entries(params||{}).map(([k,v])=>k+"="+encodeURIComponent(v)).join("&"); const r=await fetch(GAS_URL+"?action="+action+"&"+authQS()+(qs?"&"+qs:""),{cache:"no-store"}); const j=await r.json(); if(j&&j.error==="auth") throw new Error("auth"); return j; }
+
+let D=null, tab="open", focusIdx=0, faxMap=null;
+
+/* ===== 起動: 前回データ即表示(SWR)→再取得 ===== */
+(function init(){
+  const c=creds();
+  if(!c.email){ $("login").classList.add("on"); return; }
+  try{ const cached=JSON.parse(localStorage.getItem(CACHE_KEY)||"null"); if(cached){ D=cached; render(); } }catch(e){}
+  refresh(false);
+})();
+async function doLogin(){ const e=$("lemail").value.trim(), p=$("lpass").value; if(!e||!p){ $("lerr").textContent="入力してください"; return; } saveCreds(e,p); $("lerr").textContent=""; try{ await refresh(true); $("login").classList.remove("on"); }catch(err){ clearCreds(); $("lerr").textContent="ログインできませんでした"; } }
+function logout(){ clearCreds(); location.reload(); }
+async function refresh(showBusy){
+  if(showBusy) busy(true,"読み込み中…");
+  try{ const j=await api("kaichkTrainList"); if(!j.ok) throw new Error(j.error||"error"); D=j; localStorage.setItem(CACHE_KEY,JSON.stringify(j)); $("login").classList.remove("on"); render(); loadFax(); }
+  catch(e){ if(String(e.message)==="auth"){ clearCreds(); $("login").classList.add("on"); $("lerr").textContent="ログインし直してください"; } else toast("読み込み失敗: "+e.message); throw e; }
+  finally{ busy(false); }
+}
+
+/* order-desk の市場注文(FAX OCR文)を od_<id> の行に添える */
+async function loadFax(){
+  if(faxMap) { render(); return; }
+  const need=(D.open||[]).some(r=>/^od_/.test(r.uid)); if(!need) return;
+  try{ const r=await fetch(ORDERDESK_URL+"?action=board&"+authQS(),{cache:"no-store"}); const j=await r.json(); if(!j.ok) return; faxMap={}; (j.orders||[]).forEach(o=>{ if(o.mall==="ichiba") faxMap[String(o.id)]={text:o.docText||"",url:o.fileUrl||"",customer:o.customer||""}; }); render(); }catch(e){}
+}
+function faxFor(uid){ const m=/^od_(.+)_\d+(_synth)?$/.exec(uid||""); if(!m||!faxMap) return null; return faxMap[m[1]]||null; }
+
+/* ===== 描画 ===== */
+function pct(a,b){ return b?Math.round(100*a/b)+"%":"—"; }
+function render(){
+  if(!D) return;
+  const st=D.stats||{}, pg=D.progress||{};
+  const answered=(st.hit||0)+(st.miss||0);
+  $("chips").innerHTML=
+    `<span class="chip">未回答 <b>${(D.open||[]).length}</b></span>`+
+    `<span class="chip ok">的中率 <b>${pct(st.hit||0,answered)}</b> (${st.hit||0}/${answered})</span>`+
+    `<span class="chip ng">見逃し <b>${st.missed||0}</b></span>`+
+    `<span class="chip">過去行の学習 <b>${pg.past_done||0}</b>/${pg.past_total||0}</span>`+
+    `<span class="chip">本番の検査対象 <b>${D.live_active||0}</b>行</span>`+
+    `<span class="chip">${esc(D.model||"")} 累計 <b>¥${D.total_yen||0}</b></span>`;
+  $("nOpen").textContent=(D.open||[]).length?`(${D.open.length})`:"";
+  $("nRules").textContent=(D.rules||[]).length?`(${D.rules.length})`:"";
+  renderOpen(); renderAnswered(); renderRules();
+}
+function srcLabel(s){ return {past:"過去の行",live:"本番",synth:"誤り植えテスト",test:"テスト"}[s]||s; }
+function descChips(desc){ return String(desc||"").split(" | ").map((p,i)=>`<span class="kv${i===0?" cust":""}">${esc(p)}</span>`).join(""); }
+function histHtml(cust){
+  const h=(D.history||{})[cust]; if(!h) return "";
+  const a=(h.kakou_past||[]), b=(h.nouhin_past||[]);
+  if(!a.length&&!b.length) return `<div class="hist">この取引先の履歴はまだありません（新規か名前の揺れ）</div>`;
+  return `<div class="hist"><h4>加工予定表の出荷済み（新しい順）</h4>${a.length?esc(a.join("\n")):"なし"}<h4>納品書DB</h4>${b.length?esc(b.join("\n")):"なし"}</div>`;
+}
+function renderOpen(){
+  const list=D.open||[]; const pane=$("pane-open");
+  if(!list.length){ pane.innerHTML=`<div class="empty">未回答はありません。<br>「過去の行から10件 出題させる」でAIに問題を作らせましょう。</div>`; return; }
+  if(focusIdx>=list.length) focusIdx=Math.max(0,list.length-1);
+  pane.innerHTML=list.map((r,i)=>{
+    const fax=faxFor(r.uid);
+    return `<div class="card${i===focusIdx?" focus":""}" id="c-${esc(r.id)}" data-i="${i}" onclick="setFocus(${i})">
+      <div class="meta"><span class="src ${esc(r.source)}">${srcLabel(r.source)}</span><span>種別: ${esc(r.type)}${r.field?" / 列: "+esc(r.field):""}</span><span class="conf">確信度 <span class="bar"><i style="width:${Math.round((r.conf||0)*100)}%"></i></span>${Math.round((r.conf||0)*100)}%</span><span>${esc(r.at)}</span></div>
+      <div class="row">${descChips(r.desc)}</div>
+      <div class="issue">⚠ ${esc(r.message)}</div>
+      <details><summary>この取引先の履歴を見る</summary>${histHtml(r.customer)}</details>
+      ${fax?`<details><summary>📠 FAX原本の読み取りテキスト${fax.url?` ／ <a href="${esc(fax.url)}" target="_blank" onclick="event.stopPropagation()">原本を開く</a>`:""}</summary><div class="fax">${esc(fax.text||"(読み取りなし)")}</div></details>`:""}
+      <div class="acts">
+        <button class="hit" onclick="answer('${esc(r.id)}','hit',event)">✔ 正しい指摘（入力ミス）</button>
+        <button class="miss" onclick="answer('${esc(r.id)}','miss',event)">✖ 誤指摘（問題なし）</button>
+        <button onclick="answer('${esc(r.id)}','skip',event)">⏭ スキップ</button>
+        <input id="n-${esc(r.id)}" placeholder="ひとこと（任意）例: ニッチの300mmは入数30が通常" onkeydown="if(event.key==='Enter'){event.preventDefault();}" onclick="event.stopPropagation()">
+        <label><input type="checkbox" id="r-${esc(r.id)}" onclick="event.stopPropagation()">ルールにも追加</label>
+      </div></div>`; }).join("");
+}
+function renderAnswered(){
+  const list=D.answered||[]; const pane=$("pane-answered");
+  if(!list.length){ pane.innerHTML=`<div class="empty">まだ回答がありません</div>`; return; }
+  const cls={ "正しい指摘":"hit","誤指摘":"miss","見逃し":"missed","スキップ":"skip" };
+  pane.innerHTML=list.map(r=>`<div class="card">
+    <div class="meta"><span class="state ${cls[r.state]||""}">${esc(r.state)}</span><span class="src ${esc(r.source)}">${srcLabel(r.source)}</span><span>種別: ${esc(r.type)}</span><span>${esc(r.answered||r.at)}</span></div>
+    <div class="row">${descChips(r.desc)}</div>
+    <div class="issue" style="font-weight:600;font-size:14px">${r.state==="見逃し"?"AIは指摘なし → 本来: ":"⚠ "}${esc(r.message)}</div>
+    ${r.note?`<div class="note">コメント: ${esc(r.note)}</div>`:""}
+    <div class="acts">${r.state!=="正しい指摘"?`<button onclick="answer('${esc(r.id)}','hit',event,true)">✔ 正しい指摘にする</button>`:""}${r.state!=="誤指摘"?`<button onclick="answer('${esc(r.id)}','miss',event,true)">✖ 誤指摘にする</button>`:""}<button class="ghost" onclick="answer('${esc(r.id)}','open',event,true)">未回答に戻す</button></div>
+  </div>`).join("");
+}
+function renderRules(){
+  const list=D.rules||[]; $("ruleList").innerHTML=`<b>現在のルール（${list.length}件）</b>`+(list.length?list.map(r=>`<div class="rule"><span>・</span><span>${esc(r)}</span></div>`).join(""):`<div class="note" style="margin-top:6px">まだありません。誤指摘にコメントを付けて「ルールにも追加」にチェックするのが手軽です。</div>`)+`<div class="note" style="margin-top:8px">削除・編集は納品書DBスプレッドシートの「AI学習ルール」タブで。</div>`;
+}
+function showTab(t){ tab=t; ["open","answered","rules"].forEach(x=>{ $("tab-"+x).classList.toggle("on",x===t); $("pane-"+x).hidden=(x!==t); }); }
+function setFocus(i){ focusIdx=i; document.querySelectorAll("#pane-open .card").forEach(c=>c.classList.toggle("focus",Number(c.dataset.i)===i)); }
+
+/* ===== 回答 ===== */
+async function answer(id,v,ev,fromAnswered){
+  if(ev) ev.stopPropagation();
+  const noteEl=$("n-"+id), ruleEl=$("r-"+id);
+  const note=noteEl?noteEl.value.trim():""; const asRule=ruleEl&&ruleEl.checked&&note;
+  const card=$("c-"+id);
+  // 画面から先に消す（楽観更新）
+  if(!fromAnswered&&card){ card.classList.add("gone"); }
+  const idx=(D.open||[]).findIndex(r=>r.id===id);
+  let moved=null;
+  if(idx>=0){ moved=D.open.splice(idx,1)[0]; }
+  else { const ai=(D.answered||[]).findIndex(r=>r.id===id); if(ai>=0) moved=D.answered.splice(ai,1)[0]; }
+  if(moved){ const map={hit:"正しい指摘",miss:"誤指摘",skip:"スキップ",open:"未回答"}; moved.state=map[v]; if(note) moved.note=note; if(v==="open") D.open.unshift(moved); else (D.answered=D.answered||[]).unshift(moved); bumpStats(); }
+  setTimeout(()=>{ render(); },fromAnswered?0:220);
+  try{
+    const params={id,v}; if(note) params.note=note;
+    const j=await api("kaichkTrainAnswer",params); if(!j.ok) throw new Error(j.error||"error");
+    if(asRule){ await api("kaichkRuleAdd",{text:note,memo:"学習ツール(回答時)"}); toast("記録しました＋ルールに追加"); }
+    else toast({hit:"「正しい指摘」を記録",miss:"「誤指摘」を記録",skip:"スキップ",open:"未回答に戻しました"}[v]);
+    localStorage.setItem(CACHE_KEY,JSON.stringify(D));
+    if(asRule) refresh(false).catch(()=>{});
+  }catch(e){ toast("保存できませんでした: "+e.message); refresh(false).catch(()=>{}); }
+}
+function bumpStats(){ const st=D.stats||(D.stats={}); let hit=0,miss=0,missed=0; (D.answered||[]).forEach(r=>{ if(r.state==="正しい指摘")hit++; else if(r.state==="誤指摘")miss++; else if(r.state==="見逃し")missed++; }); if(D.answered&&D.answered.length<60){ st.hit=hit; st.miss=miss; st.missed=missed; } }
+async function addRule(){ const t=$("ruleText").value.trim(); if(!t) return; busy(true,"保存中…"); try{ const j=await api("kaichkRuleAdd",{text:t,memo:"学習ツール"}); if(!j.ok) throw new Error(j.error||"error"); D.rules=j.rules; $("ruleText").value=""; render(); toast("ルールを追加しました"); }catch(e){ toast("失敗: "+e.message); } finally{ busy(false); } }
+
+/* ===== 出題生成 ===== */
+async function genPast(n){
+  busy(true,`AIが過去の出荷済み行 ${n}件を検査中…（30〜60秒）`);
+  try{ const j=await api("kaichkBulk",{n}); if(!j.ok) throw new Error(j.error||"error");
+    toast(`${j.checked}行を検査 → 指摘 ${j.findings}件（AIの費用 約¥${j.est_yen}）残り${j.remaining}行`);
+    await refresh(false); showTab("open"); focusIdx=0; setFocus(0);
+  }catch(e){ toast("失敗: "+e.message); } finally{ busy(false); }
+}
+async function genSynth(n){
+  busy(true,`過去の行に誤りを植えてAIに解かせています ${n}件…（30〜60秒）`);
+  try{ const j=await api("kaichkSynth",{n}); if(!j.ok) throw new Error(j.error||"error");
+    toast(`植えた誤り${j.checked}件: 的中${j.hit} / 見逃し${j.missed} / 余計な指摘${j.miss}（約¥${j.est_yen}）`);
+    await refresh(false); showTab("answered");
+  }catch(e){ toast("失敗: "+e.message); } finally{ busy(false); }
+}
+
+/* ===== キー操作 ===== */
+document.addEventListener("keydown",e=>{
+  if(tab!=="open"||!D||!(D.open||[]).length) return;
+  const t=e.target; if(t&&(t.tagName==="INPUT"||t.tagName==="TEXTAREA")) return;
+  const r=D.open[focusIdx]; if(!r) return;
+  if(e.key==="1"){ answer(r.id,"hit"); } else if(e.key==="2"){ answer(r.id,"miss"); } else if(e.key==="3"){ answer(r.id,"skip"); }
+  else if(e.key==="j"||e.key==="J"){ setFocus(Math.min(focusIdx+1,D.open.length-1)); document.querySelector("#pane-open .card.focus")?.scrollIntoView({block:"center",behavior:"smooth"}); }
+  else if(e.key==="k"||e.key==="K"){ setFocus(Math.max(focusIdx-1,0)); document.querySelector("#pane-open .card.focus")?.scrollIntoView({block:"center",behavior:"smooth"}); }
+});
+</script>
+</body>
+</html>
